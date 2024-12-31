@@ -12,7 +12,7 @@ use crabgrab::capture_stream::{CaptureConfig, CaptureStream, StreamEvent, Captur
 
 // Variables to configure the stream
 // Encoder configs are in the ./encoder folder
-const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::F420;
+const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::Bgra8888;
 const SCALE_FACTOR: f64 = 2.0;
 const OUTPUT_FILE: &str = "./video.mp4";
 
@@ -27,7 +27,8 @@ fn main() -> Result<(), Error> {
     let width = size.width;
 
     let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
-        .with_output_size(size);
+        .with_output_size(size)
+        ;
 
     let stream_token =
     CaptureStream::test_access(false).ok_or(Error::msg("Failed to get access token"))?;
