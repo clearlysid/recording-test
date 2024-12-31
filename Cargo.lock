@@ -101,6 +101,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cidre"
+version = "0.4.0"
+source = "git+https://github.com/yury/cidre?rev=1e008bec49a0f97aeaaea6130a0ba20fe00aa03b#1e008bec49a0f97aeaaea6130a0ba20fe00aa03b"
+dependencies = [
+ "cidre-macros",
+ "parking_lot",
+]
+
+[[package]]
+name = "cidre-macros"
+version = "0.1.0"
+source = "git+https://github.com/yury/cidre?rev=1e008bec49a0f97aeaaea6130a0ba20fe00aa03b#1e008bec49a0f97aeaaea6130a0ba20fe00aa03b"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -406,6 +420,7 @@ version = "0.1.0"
 dependencies = [
  "ac-ffmpeg",
  "anyhow",
+ "cidre",
  "crabgrab",
  "crossbeam-channel",
  "pollster",

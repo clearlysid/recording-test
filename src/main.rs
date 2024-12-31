@@ -34,7 +34,7 @@ fn main() -> Result<(), Error> {
 
     // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = encoder::acffmpeg::EncoderAcFfmpeg::init(height, width, output)?;
+    let mut encoder = encoder::AVAssetWriterEncoder::init(height, width, output)?;
 
     let (tx, rx) = mpsc::channel();
 
