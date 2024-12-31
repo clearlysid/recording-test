@@ -24,9 +24,9 @@ pub struct EncoderAcFfmpeg {
 
 impl EncoderAcFfmpeg {
     pub fn init(height: f64, width: f64, path: &std::path::Path) -> Result<Self, Error> {
-        let pf = get_pixel_format("yuv420p");
+        let pf = get_pixel_format("nv12");
         let codec = "libx264";
-        let time_base = TimeBase::new(1, 1_000_000_000); // trial and error
+        let time_base = TimeBase::MICROSECONDS;
 
         let encoder_builder = VideoEncoder::builder(codec)?
             // Ensure proper bitrate (in bits per second)
@@ -39,11 +39,11 @@ impl EncoderAcFfmpeg {
             .set_option("preset", "veryfast")  // Balance between speed and quality
             .set_option("tune", "zerolatency")  // Better for screen recording
             .set_option("crf", "23")  // Default CRF value, lower means better quality
-            // Color settings
             .set_option("color_range", "mpeg")
             .set_option("colormatrix", "bt709")
             .set_option("colorprim", "bt709")
-            .set_option("transfer", "bt709");
+            .set_option("transfer", "bt709")
+            ;
 
         let encoder = encoder_builder.build()?;
         let cp = encoder.codec_parameters();
@@ -73,12 +73,10 @@ impl Encoder for EncoderAcFfmpeg {
         }
 
         // Create ts
-        let pts_raw = ts.duration_since(self.first_ts.unwrap()).as_millis();
-        let pts = Timestamp::from_millis(pts_raw as i64);
+        let pts_raw = ts.duration_since(self.first_ts.unwrap()).as_micros();
+        let pts = Timestamp::from_micros(pts_raw as i64);
 
         let frame = create_acff_videoframe_from_crabgrab_frame(frame)?;
-
-        println!("converted frame");
 
         let cp = self.encoder.codec_parameters();
         let target_pf = cp.pixel_format();
@@ -99,7 +97,6 @@ impl Encoder for EncoderAcFfmpeg {
         self.encoder.push(scaled_frame.with_pts(pts))?;
 
         while let Ok(Some(p)) = self.encoder.take() {
-            // TODO: Write to file
             self.muxer.push(p)?;
         }
 
@@ -116,11 +113,9 @@ impl Encoder for EncoderAcFfmpeg {
 
 
 fn create_acff_videoframe_from_crabgrab_frame(source: crabgrab::prelude::VideoFrame) -> Result<VideoFrame, Error> {
-
     let width = source.size().width as usize;
     let height = source.size().height as usize;
 
-    println!("height {} width {}", height, width);
     let bitmap = source.get_bitmap()?;
     let pf = match bitmap {
         BgraUnorm8x4(_) => get_pixel_format("bgra"),
@@ -132,10 +127,7 @@ fn create_acff_videoframe_from_crabgrab_frame(source: crabgrab::prelude::VideoFr
 
     match bitmap {
         BgraUnorm8x4(FrameBitmapBgraUnorm8x4 { data, width, .. }) => {
-            // Data Operations
             let bytes = data.as_flattened();
-            
-            // BGRA is single-planar format, usually on windows
             let stride = black_frame.planes()[0].line_size();
 
             for (out_line, in_line) in black_frame.planes_mut()[0]
@@ -152,7 +144,6 @@ fn create_acff_videoframe_from_crabgrab_frame(source: crabgrab::prelude::VideoFr
                 VideoRange::Video => { println!("video range"); }, // Luma: [16, 240], Chroma: [0, 255]
             }
 
-            // Data Manipulation
             let y_bytes = luma_data.as_ref();
             let uv_bytes = chroma_data.as_flattened();
 

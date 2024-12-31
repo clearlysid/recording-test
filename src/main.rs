@@ -1,38 +1,39 @@
 
 mod encoder;
 
-use std::path::Path;
-use std::sync::mpsc;
-use encoder::Encoder;
-
 use anyhow::Error;
+use std::sync::mpsc;
+use std::path::Path;
+use encoder::Encoder;
 use pollster::FutureExt;
 
 use crabgrab::capturable_content::{CapturableContent, CapturableContentFilter};
 use crabgrab::capture_stream::{CaptureConfig, CaptureStream, StreamEvent, CapturePixelFormat};
 
+// Variables to configure the stream
+// Encoder configs are in the ./encoder folder
+const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::F420;
+const SCALE_FACTOR: f64 = 2.0;
+const OUTPUT_FILE: &str = "./video.mp4";
+
 fn main() -> Result<(), Error> {
 
-    // MARK: Setup stream
-    let stream_px_fmt = CapturePixelFormat::Bgra8888;
+    // MARK: Configure Stream
     let content = CapturableContent::new(CapturableContentFilter::DISPLAYS).block_on()?;
-
     let display = content.displays().next().ok_or(Error::msg("No displays found"))?;
 
-    let size = display.rect().scaled(2.0).size; // Hardcoded to 2 (as scale factor)
+    let size = display.rect().scaled(SCALE_FACTOR).size; // Hardcoded to 2 (as scale factor)
     let height = size.height;
     let width = size.width;
 
-    println!("height {}, width {}", height, width);
-
-    let stream_cfg = CaptureConfig::with_display(display, stream_px_fmt, None)
+    let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
         .with_output_size(size);
 
     let stream_token =
     CaptureStream::test_access(false).ok_or(Error::msg("Failed to get access token"))?;
 
-    // MARK: Setup encoder in new thread
-    let output = Path::new("./video.mp4");
+    // MARK: Configure Encoder
+    let output = Path::new(OUTPUT_FILE);
     let mut encoder = encoder::acffmpeg::EncoderAcFfmpeg::init(height, width, output)?;
 
     let (tx, rx) = mpsc::channel();
