@@ -118,11 +118,14 @@ impl Encoder for AVAssetWriterEncoder {
         }
         let frameinfo = SCStreamFrameInfo::from_sample_buffer(&sample_buffer);
         println!("frameinfo={:?}", frameinfo);
+        let format_desc = sample_buffer.get_format_description();
+        println!("format_desc={:?}", format_desc);
+
         let sample_buf = sample_buffer.as_sendable();
 
-        // println!("cms={:?}", sample_buf);
 
         let sample_buf = unsafe { &*(sample_buf as *mut cm::SampleBuf) };
+        println!("cms={:?}", sample_buf);
 
         let time = sample_buf.pts();
 
