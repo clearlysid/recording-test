@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::time::Instant;
-
+use super::Encoder;
 use anyhow::Error;
 
 use ac_ffmpeg::format::muxer::{Muxer, OutputFormat};
@@ -11,10 +11,9 @@ use ac_ffmpeg::time::{TimeBase, Timestamp};
 use ac_ffmpeg::format::io::IO;
 
 use crabgrab::feature::bitmap::{FrameBitmapBgraUnorm8x4, FrameBitmapYCbCr};
-use crabgrab::prelude::{VideoFrameBitmap, VideoRange};
+use crabgrab::prelude::VideoFrameBitmap;
 use crabgrab::prelude::FrameBitmap::{BgraUnorm8x4, YCbCr};
 
-use super::Encoder;
 
 pub struct EncoderAcFfmpeg {
     muxer: Muxer<File>,
@@ -24,7 +23,7 @@ pub struct EncoderAcFfmpeg {
 
 impl EncoderAcFfmpeg {
     pub fn init(height: f64, width: f64, path: &std::path::Path) -> Result<Self, Error> {
-        let pf = get_pixel_format("nv12");
+        let pf = get_pixel_format("yuv420p");
         let codec = "libx264";
         let time_base = TimeBase::MICROSECONDS;
 
@@ -35,14 +34,15 @@ impl EncoderAcFfmpeg {
             .time_base(time_base)
             .width(width as usize)
             .height(height as usize)
+            .set_option("fps", "60")
             // Basic quality settings
-            .set_option("preset", "veryfast")  // Balance between speed and quality
+            .set_option("preset", "fast")  // Balance between speed and quality
             .set_option("tune", "zerolatency")  // Better for screen recording
-            .set_option("crf", "23")  // Default CRF value, lower means better quality
-            .set_option("color_range", "mpeg")
-            .set_option("colormatrix", "bt709")
-            .set_option("colorprim", "bt709")
-            .set_option("transfer", "bt709")
+            .set_option("crf", "13")  // Default CRF value, lower means better quality
+            .set_option("color_range", "jpeg")
+            // .set_option("colormatrix", "bt709")
+            // .set_option("colorprim", "bt709")
+            // .set_option("transfer", "bt709")
             ;
 
         let encoder = encoder_builder.build()?;
@@ -138,12 +138,7 @@ fn create_acff_videoframe_from_crabgrab_frame(source: crabgrab::prelude::VideoFr
                 out_line[..width * 4].copy_from_slice(in_line);
             }
         }
-        YCbCr(FrameBitmapYCbCr { luma_data, chroma_data, range, .. }) => {
-            match range {
-                VideoRange::Full => { println!("full range"); }, // Luma: [0, 255], Chroma: [0, 255]
-                VideoRange::Video => { println!("video range"); }, // Luma: [16, 240], Chroma: [0, 255]
-            }
-
+        YCbCr(FrameBitmapYCbCr { luma_data, chroma_data, .. }) => {
             let y_bytes = luma_data.as_ref();
             let uv_bytes = chroma_data.as_flattened();
 
