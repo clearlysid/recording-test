@@ -19,3 +19,7 @@ cidre = { git = "https://github.com/yury/cidre", rev = "1e008bec49a0f97aeaaea613
 	"dispatch",
 	"macos_13_0",
 ] }
+screencapturekit = "=0.3.2"
+core-foundation = "0.10.0"
+core-media-rs = "0.3.4"
+core-graphics = "0.24.0"
