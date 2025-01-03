@@ -1,0 +1,8 @@
+[net]
+git-fetch-with-cli = true
+
+[env]
+FFMPEG_STATIC = "1"
+
+FFMPEG_INCLUDE_DIR = { value = "./bin/ffmpeg/include/", relative = true, force = true }
+FFMPEG_LIB_DIR = { value = "./bin/ffmpeg/lib/", relative = true, force = true }

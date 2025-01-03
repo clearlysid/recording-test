@@ -2,6 +2,9 @@
 mod encoder;
 
 use anyhow::Error;
+use crabgrab::prelude::WindowsDx11VideoFrame;
+use encoder::windowsrs::SendDirectX;
+use windows::Graphics::DirectX::Direct3D11::IDirect3DSurface;
 use std::sync::mpsc;
 use std::path::Path;
 use encoder::Encoder;
@@ -23,10 +26,10 @@ fn main() -> Result<(), Error> {
     let display = content.displays().next().ok_or(Error::msg("No displays found"))?;
 
     let size = display.rect().scaled(SCALE_FACTOR).size; // Hardcoded to 2 (as scale factor)
-    let height = size.height;
-    let width = size.width;
+    let height = size.height as u32;
+    let width = size.width as u32;
 
-    let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
+    let stream_cfg = CaptureConfig::with_display(display, CapturePixelFormat::Bgra8888)
         .with_output_size(size);
 
     let stream_token =
@@ -34,24 +37,25 @@ fn main() -> Result<(), Error> {
 
     // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = encoder::acffmpeg::EncoderAcFfmpeg::init(height, width, output)?;
+    let mut encoder = encoder::windowsrs::EncoderWindowsRs::init(height, width, output)?;
 
     let (tx, rx) = mpsc::channel();
-
+    
     let handle = std::thread::spawn(move || {
-        while let Ok(Some(frame)) = rx.recv() {
-            encoder.append_frame(frame).expect("couldn't encode frame");
+        while let Ok(Some((surface, ts))) = rx.recv() {
+            encoder.send_frame((surface, ts)).expect("couldn't encode frame");
         }
-
+        
         encoder.finish().expect("couldn't finish encoding");
     });
-
     // MARK: Start stream
     let mut stream = CaptureStream::new(stream_token, stream_cfg, move |result| match result {
         Ok(event) => match event {
             StreamEvent::Video(frame) => {
-                println!("got new frame");
-                tx.send(Some(frame)).expect("couldn't send frame");
+    
+                let ts = frame.capture_time();
+                let (surface, _) = frame.get_dx11_surface().expect("can't get surface");
+                tx.send(Some((SendDirectX::new(surface), ts))).expect("couldn't send frame");
             },
             StreamEvent::End => tx.send(None).expect("couldn't send none"),
             _ => {}
