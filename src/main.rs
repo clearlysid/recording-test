@@ -3,7 +3,7 @@ mod encoder;
 
 use anyhow::Error;
 use crabgrab::prelude::WindowsDx11VideoFrame;
-use encoder::windowsrs::SendDirectX;
+use encoder::windowsrs::{ContainerSettingsBuilder, SendDirectX, VideoSettingsBuilder};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DSurface;
 use std::sync::mpsc;
 use std::path::Path;
@@ -37,7 +37,7 @@ fn main() -> Result<(), Error> {
 
     // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = encoder::windowsrs::EncoderWindowsRs::init(height, width, output)?;
+    let mut encoder = encoder::windowsrs::EncoderWindowsRs::new(VideoSettingsBuilder::new(width, height), ContainerSettingsBuilder::new(), output)?;
 
     let (tx, rx) = mpsc::channel();
     
