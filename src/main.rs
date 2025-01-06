@@ -27,6 +27,7 @@ fn main() -> Result<(), Error> {
     let width = size.width;
 
     let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
+        .with_color_space_name("kCGColorSpaceSRGB".to_string())
         .with_output_size(size)
         ;
 
