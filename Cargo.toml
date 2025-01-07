@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ac-ffmpeg = { git = "https://github.com/helmerapp/rust-ac-ffmpeg", tag = "helmer-v0.18.1" }
-crabgrab = { path = "../CrabGrab", features = ["bitmap", "dx11"] }
+# ac-ffmpeg = { git = "https://github.com/helmerapp/rust-ac-ffmpeg", tag = "helmer-v0.18.1" }
+crabgrab = { git = "https://github.com/helmerapp/CrabGrab", features = ["bitmap", "dx11"] }
 crossbeam-channel = "0.5.13"
 pollster = "0.3.0"
 anyhow = "1.0.86"

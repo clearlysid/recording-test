@@ -1,6 +1,5 @@
 // pub mod acffmpeg;
-pub mod windowsrs;
-pub mod win;
+pub mod xwin;
 
 use anyhow::Error;
 use crabgrab::frame::VideoFrame;
