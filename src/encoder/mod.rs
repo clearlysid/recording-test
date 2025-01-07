@@ -1,5 +1,7 @@
 // pub mod acffmpeg;
-pub mod xwin;
+
+#[cfg(target_os = "windows")]
+pub mod win;
 
 use anyhow::Error;
 use crabgrab::frame::VideoFrame;
