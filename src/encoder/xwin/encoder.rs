@@ -28,10 +28,7 @@ use windows::{
     },
     Security::Cryptography::CryptographicBuffer,
     Storage::{
-        FileAccessMode, StorageFile,
-        Streams::{
-            Buffer, DataReader, IRandomAccessStream, InMemoryRandomAccessStream, InputStreamOptions,
-        },
+        FileAccessMode, StorageFile
     },
 };
 
@@ -110,7 +107,7 @@ pub struct VideoSettingsBuilder {
 impl VideoSettingsBuilder {
     pub const fn new(width: u32, height: u32) -> Self {
         Self {
-            bitrate: 15000000,
+            bitrate: 15_000_000,
             frame_rate: 60,
             pixel_aspect_ratio: (1, 1),
             sub_type: VideoSettingsSubType::HEVC,
@@ -531,7 +528,7 @@ impl VideoEncoder {
                 if sample_requested
                     .Request()?
                     .StreamDescriptor()?
-                    .GetRuntimeClassName()?
+                    .Name()?
                     == "Windows.Media.Core.AudioStreamDescriptor"
                 {
                     if is_audio_disabled {
@@ -667,37 +664,27 @@ impl VideoEncoder {
         })
     }
 
-    /// Sends a video frame to the video encoder for encoding.
-    ///
-    /// # Arguments
-    ///
-    /// * `frame` - A mutable reference to the `Frame` to be encoded.
-    ///
-    /// # Returns
-    ///
-    /// Returns `Ok(())` if the frame is successfully sent for encoding, or a `VideoEncoderError`
-    /// if an error occurs.
+    /// FOR HELMER
+    /// Sends a DX11 surface to the video encoder for encoding.
     #[inline]
-    pub fn send_frame(&mut self, frame: &mut Frame) -> Result<(), VideoEncoderError> {
+    pub fn send_surface(&mut self, surface: IDirect3DSurface, ts: TimeSpan) -> Result<(), VideoEncoderError> {
         if self.is_video_disabled {
             return Err(VideoEncoderError::VideoDisabled);
         }
 
         let timespan = match self.first_timespan {
             Some(timespan) => TimeSpan {
-                Duration: frame.timespan().Duration - timespan.Duration,
+                Duration: ts.Duration - timespan.Duration,
             },
             None => {
-                let timespan = frame.timespan();
+                let timespan = ts;
                 self.first_timespan = Some(timespan);
                 TimeSpan { Duration: 0 }
             }
         };
 
         self.frame_sender.send(Some((
-            VideoEncoderSource::DirectX(SendDirectX::new(unsafe {
-                frame.as_raw_surface().clone()
-            })),
+            VideoEncoderSource::DirectX(SendDirectX::new(surface)),
             timespan,
         )))?;
 
@@ -719,6 +706,59 @@ impl VideoEncoder {
 
         Ok(())
     }
+
+    /// Sends a video frame to the video encoder for encoding.
+    ///
+    /// # Arguments
+    ///
+    /// * `frame` - A mutable reference to the `Frame` to be encoded.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the frame is successfully sent for encoding, or a `VideoEncoderError`
+    /// if an error occurs.
+    // #[inline]
+    // pub fn send_frame(&mut self, frame: &mut Frame) -> Result<(), VideoEncoderError> {
+    //     if self.is_video_disabled {
+    //         return Err(VideoEncoderError::VideoDisabled);
+    //     }
+
+    //     let timespan = match self.first_timespan {
+    //         Some(timespan) => TimeSpan {
+    //             Duration: frame.timespan().Duration - timespan.Duration,
+    //         },
+    //         None => {
+    //             let timespan = frame.timespan();
+    //             self.first_timespan = Some(timespan);
+    //             TimeSpan { Duration: 0 }
+    //         }
+    //     };
+
+    //     self.frame_sender.send(Some((
+    //         VideoEncoderSource::DirectX(SendDirectX::new(unsafe {
+    //             frame.as_raw_surface().clone()
+    //         })),
+    //         timespan,
+    //     )))?;
+
+    //     let (lock, cvar) = &*self.frame_notify;
+    //     let mut processed = lock.lock();
+    //     if !*processed {
+    //         cvar.wait(&mut processed);
+    //     }
+    //     *processed = false;
+    //     drop(processed);
+
+    //     if self.error_notify.load(atomic::Ordering::Relaxed) {
+    //         if let Some(transcode_thread) = self.transcode_thread.take() {
+    //             transcode_thread
+    //                 .join()
+    //                 .expect("Failed to join transcode thread")?;
+    //         }
+    //     }
+
+    //     Ok(())
+    // }
 
     /// Sends a video frame to the video encoder for encoding.
     ///

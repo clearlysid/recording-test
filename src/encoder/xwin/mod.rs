@@ -4,9 +4,9 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::Encoder;
-
 mod encoder;
 
+use windows::Foundation::TimeSpan;
 use encoder::{AudioSettingsBuilder, ContainerSettingsBuilder, VideoEncoder, VideoSettingsBuilder};
 
 
@@ -39,25 +39,24 @@ impl Encoder for WindowsCaptureEncoder {
     fn append_frame(&mut self, video_frame: crabgrab::prelude::VideoFrame) -> Result<(), anyhow::Error> {
         if let Some(encoder) = self.encoder.as_mut() {
 
-            // Set up timestamp
+            // Process timestamp
             let ts = video_frame.capture_time();
             if self.first_ts.is_none() {
                 self.first_ts = Some(ts)
             }
 
-            let (dx11_surface, pixel_format) = video_frame.get_dx11_surface()?;
-            let (dx11_texture, _) = video_frame.get_dx11_texture()?;
+            let ts_delta = ts.duration_since(self.first_ts.unwrap());
+            let ts_delta_nanos = ts_delta.as_nanos() as i64;
 
+            let timespan = TimeSpan { Duration: ts_delta_nanos };
+
+            // Get IDirect3DSurface
+            let (dx11_surface, _) = video_frame.get_dx11_surface()?;
+
+            // Send surface to encoder
+            encoder.send_surface(dx11_surface, timespan)?;
             
-            // Convert the CrabGrab frame to WCFrame
-
-
-            // let frame = Frame::new(d3d_device, dx11_surface, dx11_texture, time, context, buffer, width, height, color_format);
-
-            //
-            // encoder.send_frame(frame)
-
-            todo!("still working");
+            Ok(())
         } else {
             Err(Error::msg("no active encoder"))
         }
