@@ -230,9 +230,6 @@ pub struct EncoderWindowsRs {
     media_stream_source: MediaStreamSource,
     starting: EventRegistrationToken,
     transcode_thread: Option<JoinHandle<Result<(), Error>>>,
-    frame_notify: Arc<(Mutex<bool>, Condvar)>,
-    error_notify: Arc<AtomicBool>,
-    is_video_disabled: bool,
 }
 
 impl EncoderWindowsRs {
@@ -300,6 +297,7 @@ impl EncoderWindowsRs {
 //                     println!("{}", timespan.Duration);
 //                     let sample = MediaStreamSample::CreateFromDirect3D11Surface(&source.0, timespan)?;
 //                     sample_requested.Request()?.SetSample(&sample)?;
+//                     println!("Media sample crreated!");
 //                 }
 //                 None => {
 //                     sample_requested.Request()?.SetSample(None)?;
@@ -324,20 +322,17 @@ impl EncoderWindowsRs {
 //     let file = StorageFile::GetFileFromPathAsync(path)?.get()?;
 //     let media_stream_output = file.OpenAsync(FileAccessMode::ReadWrite)?.get()?;
     
-//     let transcoder = media_transcoder.PrepareMediaStreamSourceTranscodeAsync(&media_stream_source, &media_stream_output, &media_encoding_profile)?
+//     let transcoder = media_transcoder.PrepareMediaStreamSourceTranscodeAsync(&media_stream_source,
+//         &media_stream_output,
+//         &media_encoding_profile)?
 //     .get()?;
 
-// let error_notify = Arc::new(AtomicBool::new(false));
-
 // let transcoder_thread = thread::spawn({
-//     let error_notify = error_notify.clone();
     
 //     move || -> Result<(), Error> {
 //         let result = transcoder.TranscodeAsync();
         
-//         if result.is_err() {
-//             error_notify.store(true, atomic::Ordering::Relaxed);
-//         }
+        
         
 //         let _ = result?.get();
         
@@ -348,7 +343,6 @@ impl EncoderWindowsRs {
 // });
 //         Ok(Self {
 //             first_timespan : None,
-//             error_notify,
 //             frame_sender,
 //             sample_requested,
 //             media_stream_source,
@@ -377,12 +371,13 @@ impl EncoderWindowsRs {
             video_encoding_properties.Width()?,
             video_encoding_properties.Height()?,
         )?;
+
         let video_stream_descriptor = VideoStreamDescriptor::Create(&video_encoding_properties)?;
 
         let media_stream_source = MediaStreamSource::CreateFromDescriptor(
             &video_stream_descriptor
         )?;
-        media_stream_source.SetBufferTime(TimeSpan::default())?;
+        media_stream_source.SetBufferTime(TimeSpan {Duration : 0})?;
 
         let starting = media_stream_source.Starting(&TypedEventHandler::<
             MediaStreamSource,
@@ -394,62 +389,59 @@ impl EncoderWindowsRs {
 
             stream_start
                 .Request()?
-                .SetActualStartPosition(TimeSpan { Duration: 0 })?;
+                .SetActualStartPosition(TimeSpan::default())?;
             Ok(())
         }))?;
 
         let (frame_sender, frame_receiver) =
             mpsc::channel::<Option<(SendDirectX<IDirect3DSurface>, TimeSpan)>>();
 
-        let frame_notify = Arc::new((Mutex::new(false), Condvar::new()));
-
         let sample_requested = media_stream_source.SampleRequested(&TypedEventHandler::<
             MediaStreamSource,
             MediaStreamSourceSampleRequestedEventArgs,
         >::new({
             let frame_receiver = frame_receiver;
-            let frame_notify = frame_notify.clone();
 
             move |_, sample_requested| {
                 let sample_requested = sample_requested.as_ref().expect(
                     "MediaStreamSource SampleRequested parameter was None This Should Not Happen.",
                 );
-                    if is_video_disabled {
-                        sample_requested.Request()?.SetSample(None)?;
 
-                        return Ok(());
-                    }
+                if is_video_disabled {
+                    sample_requested.Request()?.SetSample(None)?;
 
-                    let frame = match frame_receiver.recv() {
-                        Ok(frame) => frame,
-                        Err(e) => panic!("Failed to receive frame from frame sender: {e}"),
-                    };
-                    println!("Frame received!");
-                    match frame {
-                        Some((source, timespan)) => {
-                            println!("{:?}", source.0.Description()?.Width);
-                            let sample = 
-                            MediaStreamSample::CreateFromDirect3D11Surface(
-                                &source.0, timespan,
-                            )?;
-                            
-                            sample_requested.Request()?.SetSample(&sample)?;
-                            println!("{}", sample.Duration()?.Duration);
-                            },
-                        None => {
-                            sample_requested.Request()?.SetSample(None)?;
-                        }
-                    }
-
-                let (lock, cvar) = &*frame_notify;
-                if let Ok(mut guard) = lock.lock() {
-                    *guard = true;
-                    cvar.notify_one();
-                } else {
-                    eprintln!("Failed to acquire the mutex lock.");
+                    return Ok(());
                 }
 
-                Ok(())
+                let frame = match frame_receiver.recv() {
+                    Ok(frame) => frame,
+                    Err(e) => panic!("Failed to receive frame from frame sender: {e}"),
+                };
+
+                match frame {
+                    Some((source, timespan)) => {
+                        let sample = 
+                        MediaStreamSample::CreateFromDirect3D11Surface(
+                            &source.0, timespan,
+                        )?;
+                        
+                        let _ = sample.SetDuration(timespan);
+                        let agrs = sample_requested.Request()?;
+
+                        
+                        match agrs.SetSample(&sample) {
+                            Ok(()) => {
+                                println!("send");
+                            }
+                            Err(e) => {print!("error : {e}");}
+                        }
+                    },
+                    None => {
+                        sample_requested.Request()?.SetSample(None)?;
+                    }
+                }
+
+            Ok(())
             }
         }))?;
 
@@ -473,15 +465,9 @@ impl EncoderWindowsRs {
             )?
             .get()?;
 
-        let error_notify = Arc::new(AtomicBool::new(false));
         let transcode_thread = thread::spawn({
-            let error_notify = error_notify.clone();
             move || -> Result<(), Error> {
                 let result = transcode.TranscodeAsync();
-
-                if result.is_err() {
-                    error_notify.store(true, atomic::Ordering::Relaxed);
-                }
 
                 result?.get()?;
 
@@ -498,9 +484,6 @@ impl EncoderWindowsRs {
             media_stream_source,
             starting,
             transcode_thread: Some(transcode_thread),
-            frame_notify,
-            error_notify,
-            is_video_disabled,
         })
     }
 
@@ -515,24 +498,11 @@ impl EncoderWindowsRs {
 
         self.frame_sender.send(Some((surface, pts))).expect("Didn't sent");
 
-        let (lock, cvar) = &*self.frame_notify;
-        let processed = lock.lock();
-
-        if let Ok(mut guard) = processed {
-            if !*guard {
-                let _unused = cvar.wait(guard);
-            } else {
-                *guard = false;
-                drop(guard);
-            }
-        }
-
-        if self.error_notify.load(atomic::Ordering::Relaxed) {
-            if let Some(transcode_thread) = self.transcode_thread.take() {
-                transcode_thread
-                    .join()
-                    .expect("Failed to join transcode thread")?;
-            }
+        if let Some(transcode_thread) = self.transcode_thread.take() {
+            println!("Threat");
+            transcode_thread
+                .join()
+                .expect("Failed to join transcode thread")?;
         }
 
         Ok(())
