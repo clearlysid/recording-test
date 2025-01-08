@@ -95,22 +95,20 @@ impl WmfEncoder {
                 let sample_requested = sample_requested.as_ref().expect("how tf this none?");
 
                 println!("Sample requested, waiting for sample...");
-                while let Ok(result) = sample_rx.recv() {
-                    match result {
-                        Some(sample) => {
-                            println!("Processing sample");
+
+                let result = sample_rx.recv().unwrap();
+
+                match result {
+                    Some(sample) => {
+                        println!("Processing sample");
                             sample_requested.Request()?.SetSample(&sample)?;
                         }
                         None => {
                             println!("received end-of-stream signal");
                             sample_requested.Request()?.SetSample(None)?;
-                            if let Some(media_stream) = media_stream {
-                                media_stream.SetIsLive(false)?;
-                            }
-                            break;
                         }
                     }
-                }
+                
 
                 Ok(())
             }
@@ -183,24 +181,23 @@ impl Encoder for WmfEncoder {
         let timespan = TimeSpan { Duration: ts_delta_nanos };
 
         // Create a MediaStreamSample from D3DSurface
-        use crabgrab::feature::dx11::WindowsDx11VideoFrame;
+        // use crabgrab::feature::dx11::WindowsDx11VideoFrame;
 
-        let (dx11_surface, _) = frame.get_dx11_surface()?;
-        let media_sample = MediaStreamSample::CreateFromDirect3D11Surface(&dx11_surface, timespan)?;
+        // let (dx11_surface, _) = frame.get_dx11_surface()?;
+        // let media_sample = MediaStreamSample::CreateFromDirect3D11Surface(&dx11_surface, timespan)?;
 
         // Alt: create MediaStreamSample from Buffer
-        // use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap};
-        // use windows::Security::Cryptography::CryptographicBuffer;
+        use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap};
+        use windows::Security::Cryptography::CryptographicBuffer;
 
-        // let media_sample = match frame.get_bitmap()? {
-        //     FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
-        //         let buf = bgra_bytes.data.as_flattened();
-
-        //         let buffer = CryptographicBuffer::CreateFromByteArray(buf)?;
-        //         MediaStreamSample::CreateFromBuffer(&buffer, timespan)?
-        //     },
-        //     _ => unimplemented!("windows encoder no support this px format"),
-        // };
+        let media_sample = match frame.get_bitmap()? {
+            FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
+                let buf = bgra_bytes.data.as_flattened();
+                let buffer = CryptographicBuffer::CreateFromByteArray(buf)?;
+                MediaStreamSample::CreateFromBuffer(&buffer, timespan)?
+            },
+            _ => unimplemented!("windows encoder no support this px format"),
+        };
 
         self.sample_tx.send(Some(media_sample)).expect("couldn't send sample");
         println!("sample sent to encoder w ts: {}", ts_delta_nanos);
