@@ -1,5 +1,4 @@
 use anyhow::Error;
-use crabgrab::util::Size;
 
 use std::path::Path;
 use std::time::Instant;
@@ -92,7 +91,7 @@ impl WmfEncoder {
         >::new({
             let sample_rx = sample_rx;
 
-            move |media_stream, sample_requested| {
+            move |_, sample_requested| {
                 let sample_requested = sample_requested.as_ref().expect("how tf this none?");
 
                 println!("Sample requested, waiting for sample...");
@@ -188,14 +187,13 @@ impl Encoder for WmfEncoder {
         // let media_sample = MediaStreamSample::CreateFromDirect3D11Surface(&dx11_surface, timespan)?;
 
         // Alt: create MediaStreamSample from Buffer
-        use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap};
+        use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap, FrameBitmapBgraUnorm8x4};
         use windows::Security::Cryptography::CryptographicBuffer;
 
         let media_sample = match frame.get_bitmap()? {
-            FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
-                // let buf = bgra_bytes.data.as_flattened();
-                let data = bgra_bytes.data;
-                let Size{width, height} = frame.size();
+            FrameBitmap::BgraUnorm8x4(bgra_frame) => {
+
+                let FrameBitmapBgraUnorm8x4 { height, width, data} = bgra_frame;
 
                 let flipped_buf = {
                     let mut flipped = Vec::with_capacity(data.len());
