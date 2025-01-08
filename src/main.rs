@@ -1,4 +1,3 @@
-
 mod encoder;
 
 use anyhow::Error;
@@ -22,14 +21,13 @@ fn main() -> Result<(), Error> {
     let content = CapturableContent::new(CapturableContentFilter::DISPLAYS).block_on()?;
     let display = content.displays().next().ok_or(Error::msg("No displays found"))?;
 
-    let size = display.rect().scaled(SCALE_FACTOR).size; // Hardcoded to 2 (as scale factor)
+    let size = display.rect().size; // Hardcoded to 2 (as scale factor)
     let height = size.height;
     let width = size.width;
 
     let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
         .with_color_space_name("kCGColorSpaceSRGB".to_string())
-        .with_output_size(size)
-        ;
+        .with_output_size(size);
 
     let stream_token =
     CaptureStream::test_access(false).ok_or(Error::msg("Failed to get access token"))?;
