@@ -53,10 +53,15 @@ fn main() -> Result<(), Error> {
                 println!("got new frame");
                 tx.send(Some(frame)).expect("couldn't send frame");
             },
-            StreamEvent::End => tx.send(None).expect("couldn't send none"),
+            StreamEvent::End => match tx.send(None) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("Error sending end-of-stream signal: {}", e);
+                }
+            },
             _ => {}
         },
-        Err(e) => println!("Error: {}", e),
+        Err(e) => eprintln!("Error: {}", e),
     })?;
 
 
