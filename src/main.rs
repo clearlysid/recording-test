@@ -3,7 +3,7 @@ mod encoder;
 use anyhow::Error;
 use std::sync::mpsc;
 use std::path::Path;
-use encoder::Encoder;
+use encoder::{Encoder, VideoEncoder};
 use pollster::FutureExt;
 
 use crabgrab::capturable_content::{CapturableContent, CapturableContentFilter};
@@ -12,7 +12,7 @@ use crabgrab::capture_stream::{CaptureConfig, CaptureStream, StreamEvent, Captur
 // Variables to configure the stream
 // Encoder configs are in the ./encoder folder
 const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::Bgra8888;
-// const SCALE_FACTOR: f64 = 2.0;
+const SCALE_FACTOR: f64 = 2.0;
 const OUTPUT_FILE: &str = "./video.mp4";
 
 fn main() -> Result<(), Error> {
@@ -27,15 +27,14 @@ fn main() -> Result<(), Error> {
 
     let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
         .with_color_space_name("kCGColorSpaceSRGB".to_string())
-        .with_output_size(size)
-        ;
+        .with_output_size(size);
 
     let stream_token =
     CaptureStream::test_access(false).ok_or(Error::msg("Failed to get access token"))?;
 
     // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = encoder::win::WmfEncoder::init(height, width, output)?;
+    let mut encoder = VideoEncoder::init(height, width, output)?;
 
     let (tx, rx) = mpsc::channel();
 
