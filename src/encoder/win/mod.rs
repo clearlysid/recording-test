@@ -6,6 +6,8 @@ use std::thread::JoinHandle;
 
 use crate::Encoder;
 
+use crabgrab::frame::VideoFrame;
+
 use windows::core::HSTRING;
 use windows::Foundation::{EventRegistrationToken, TimeSpan, TypedEventHandler};
 use windows::Storage::{FileAccessMode, StorageFile};
@@ -55,12 +57,12 @@ impl WmfEncoder {
 
         // Here we create the "source" video props. Note the "uncompressed" tag + Bgra8 subtype.
         // NOTE: also has MJPEG, YUV, NV12 etc. interesting.
-        let source_video_props = VideoEncodingProperties::CreateUncompressed(
+        let video_props_source = VideoEncodingProperties::CreateUncompressed(
             &MediaEncodingSubtypes::Bgra8()?,
             video_props.Width()?,
             video_props.Height()?,
         )?;
-        let video_stream_descriptor = VideoStreamDescriptor::Create(&source_video_props)?;
+        let video_stream_descriptor = VideoStreamDescriptor::Create(&video_props_source)?;
 
         // Create a media stream source and set the buffer time
         let media_stream_source = MediaStreamSource::CreateFromDescriptor(&video_stream_descriptor)?;
@@ -89,22 +91,32 @@ impl WmfEncoder {
         >::new({
             let sample_rx = sample_rx;
 
-            move |_, sample_requested| {
+            move |media_stream, sample_requested| {
                 let sample_requested = sample_requested.as_ref().expect("how tf this none?");
 
-                if let Some(sample) = sample_rx.recv().expect("couldn't get sample from sender") {
-                    sample_requested.Request()?.SetSample(&sample)?;
-                } else {
-                    sample_requested.Request()?.SetSample(None)?;
+                println!("Sample requested, waiting for sample...");
+                while let Ok(result) = sample_rx.recv() {
+                    match result {
+                        Some(sample) => {
+                            println!("Processing sample");
+                            sample_requested.Request()?.SetSample(&sample)?;
+                        }
+                        None => {
+                            println!("received end-of-stream signal");
+                            sample_requested.Request()?.SetSample(None)?;
+                            if let Some(media_stream) = media_stream {
+                                media_stream.SetIsLive(false)?;
+                            }
+                            break;
+                        }
+                    }
                 }
 
                 Ok(())
             }
         }))?;
 
-        let transcoder = MediaTranscoder::new()?;
-        transcoder.SetHardwareAccelerationEnabled(true)?;
-
+        // Set up file for writing into
         std::fs::File::create(&output)?;
         let path = std::fs::canonicalize(&output).unwrap().to_string_lossy()[4..].to_string();
         let path = Path::new(&path);
@@ -113,6 +125,10 @@ impl WmfEncoder {
 
         let file = StorageFile::GetFileFromPathAsync(path)?.get()?;
         let media_stream_output = file.OpenAsync(FileAccessMode::ReadWrite)?.get()?;
+
+        // Set up MediaTranscoder
+        let transcoder = MediaTranscoder::new()?;
+        transcoder.SetHardwareAccelerationEnabled(true)?;
 
         let transcode = transcoder
             .PrepareMediaStreamSourceTranscodeAsync(
@@ -124,8 +140,18 @@ impl WmfEncoder {
 
         let transcode_thread = std::thread::spawn({
             move || -> Result<(), Error> {
-                transcode.TranscodeAsync()?.get()?;
-                drop(transcoder);
+                println!("Starting transcoding...");    
+                let transcode_async = transcode.TranscodeAsync()?;
+                println!("TranscodeAsync called");
+                
+                match transcode_async.get() {
+                    Ok(_) => println!("Transcoding completed successfully"),
+                    Err(e) => {
+                        println!("Transcoding failed: {:?}", e);
+                        return Err(e.into());
+                    }
+                }
+                
                 Ok(())
             }
         });
@@ -142,9 +168,8 @@ impl WmfEncoder {
 }
 
 
-
 impl Encoder for WmfEncoder {
-    fn append_frame(&mut self, frame: crabgrab::prelude::VideoFrame) -> Result<(), anyhow::Error> {
+    fn append_frame(&mut self, frame: VideoFrame) -> Result<(), anyhow::Error> {
         // Process timestamp
         let ts = frame.capture_time();
         if self.first_ts.is_none() {
@@ -158,13 +183,13 @@ impl Encoder for WmfEncoder {
         let timespan = TimeSpan { Duration: ts_delta_nanos };
 
         // Create a MediaStreamSample from D3DSurface
-        use crabgrab::prelude::WindowsDx11VideoFrame;
+        use crabgrab::feature::dx11::WindowsDx11VideoFrame;
 
         let (dx11_surface, _) = frame.get_dx11_surface()?;
         let media_sample = MediaStreamSample::CreateFromDirect3D11Surface(&dx11_surface, timespan)?;
 
         // Alt: create MediaStreamSample from Buffer
-        // use crabgrab::prelude::{VideoFrameBitmap, FrameBitmap};
+        // use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap};
         // use windows::Security::Cryptography::CryptographicBuffer;
 
         // let media_sample = match frame.get_bitmap()? {
@@ -184,10 +209,13 @@ impl Encoder for WmfEncoder {
     }
 
     fn finish(&mut self) -> Result<(), anyhow::Error> {
+        println!("Finishing encoder...");
+
         // Send empty sample
         self.sample_tx.send(None).expect("couldn't send no-op");
 
         // Conclude transcode thread
+        println!("Waiting for transcode thread...");
         if let Some(transcode_thread) = self.transcode_thread.take() {
             transcode_thread
                 .join()
@@ -198,6 +226,8 @@ impl Encoder for WmfEncoder {
         self.media_stream_source.RemoveStarting(self.starting)?;
         self.media_stream_source
             .RemoveSampleRequested(self.sample_requested)?;
+
+        println!("Encoder finished successfully");
 
         Ok(())
     }
