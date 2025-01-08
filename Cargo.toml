@@ -4,11 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ac-ffmpeg = { git = "https://github.com/helmerapp/rust-ac-ffmpeg", tag = "helmer-v0.18.1" }
-crabgrab = { path = "../CrabGrab", features = ["bitmap"] }
+# ac-ffmpeg = { git = "https://github.com/helmerapp/rust-ac-ffmpeg", tag = "helmer-v0.18.1" }
+crabgrab = { path = "https://github.com/helmerapp/CrabGrab", features = ["bitmap"] }
 crossbeam-channel = "0.5.13"
 pollster = "0.3.0"
 anyhow = "1.0.86"
+
+[target.'cfg(windows)'.dependencies]
+
+[target.'cfg(macos)'.dependencies]
 cidre = { git = "https://github.com/yury/cidre", rev = "1e008bec49a0f97aeaaea6130a0ba20fe00aa03b", default-features = false, features = [
 	"private",
 	"blocks",

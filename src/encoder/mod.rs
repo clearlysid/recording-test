@@ -1,8 +1,11 @@
-mod acffmpeg;
-mod cidre;
+// mod acffmpeg;
+// pub use acffmpeg::EncoderAcFfmpeg as VideoEncoder;
 
-pub use acffmpeg::*;
-pub use cidre::*;
+#[cfg(target_os = "macos")]
+mod mac;
+
+#[cfg(target_os = "macos")]
+pub use mac::AVAssetWriterEncoder as VideoEncoder;
 
 use anyhow::Error;
 use crabgrab::frame::VideoFrame;

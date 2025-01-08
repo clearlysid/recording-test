@@ -4,7 +4,7 @@ mod encoder;
 use anyhow::Error;
 use std::sync::mpsc;
 use std::path::Path;
-use encoder::Encoder;
+use encoder::{Encoder, VideoEncoder};
 use pollster::FutureExt;
 
 use crabgrab::capturable_content::{CapturableContent, CapturableContentFilter};
@@ -36,7 +36,7 @@ fn main() -> Result<(), Error> {
 
     // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = encoder::AVAssetWriterEncoder::init(height, width, output)?;
+    let mut encoder = VideoEncoder::init(height, width, output)?;
 
     let (tx, rx) = mpsc::channel();
 

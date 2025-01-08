@@ -7,16 +7,16 @@ use super::Encoder;
 
 #[link(name = "AVFoundation", kind = "framework")]
 extern "C" {
-    static AVVideoAverageBitRateKey: &'static cidre::ns::String;
-    static AVVideoProfileLevelKey: &'static cidre::ns::String;
-    static AVVideoProfileLevelH264HighAutoLevel: &'static cidre::ns::String;
+    static AVVideoAverageBitRateKey: &'static ns::String;
+    static AVVideoProfileLevelKey: &'static ns::String;
+    static AVVideoProfileLevelH264HighAutoLevel: &'static ns::String;
 
-    static AVVideoTransferFunctionKey: &'static cidre::ns::String;
-    static AVVideoTransferFunction_ITU_R_709_2: &'static cidre::ns::String;
-    static AVVideoColorPrimariesKey: &'static cidre::ns::String;
-    static AVVideoColorPrimaries_ITU_R_709_2: &'static cidre::ns::String;
-    static AVVideoYCbCrMatrixKey: &'static cidre::ns::String;
-    static AVVideoYCbCrMatrix_ITU_R_709_2: &'static cidre::ns::String;
+    static AVVideoTransferFunctionKey: &'static ns::String;
+    static AVVideoTransferFunction_ITU_R_709_2: &'static ns::String;
+    static AVVideoColorPrimariesKey: &'static ns::String;
+    static AVVideoColorPrimaries_ITU_R_709_2: &'static ns::String;
+    static AVVideoYCbCrMatrixKey: &'static ns::String;
+    static AVVideoYCbCrMatrix_ITU_R_709_2: &'static ns::String;
 }
 
 pub struct AVAssetWriterEncoder {
