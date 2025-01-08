@@ -12,7 +12,7 @@ use crabgrab::capture_stream::{CaptureConfig, CaptureStream, StreamEvent, Captur
 // Variables to configure the stream
 // Encoder configs are in the ./encoder folder
 const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::Bgra8888;
-const SCALE_FACTOR: f64 = 2.0;
+// const SCALE_FACTOR: f64 = 2.0;
 const OUTPUT_FILE: &str = "./video.mp4";
 
 fn main() -> Result<(), Error> {
@@ -21,7 +21,7 @@ fn main() -> Result<(), Error> {
     let content = CapturableContent::new(CapturableContentFilter::DISPLAYS).block_on()?;
     let display = content.displays().next().ok_or(Error::msg("No displays found"))?;
 
-    let size = display.rect().scaled(SCALE_FACTOR).size; // Hardcoded to 2 (as scale factor)
+    let size = display.rect().size; // Hardcoded to 2 (as scale factor)
     let height = size.height;
     let width = size.width;
 

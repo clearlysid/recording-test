@@ -178,7 +178,7 @@ impl Encoder for WmfEncoder {
         let ts_delta = ts.duration_since(self.first_ts.unwrap());
         let ts_delta_nanos = ts_delta.as_nanos() as i64;
 
-        let timespan = TimeSpan { Duration: ts_delta_nanos };
+        let timespan = TimeSpan { Duration: ts_delta_nanos / 100 };
 
         // Create a MediaStreamSample from D3DSurface
         // use crabgrab::feature::dx11::WindowsDx11VideoFrame;
