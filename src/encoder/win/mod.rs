@@ -1,4 +1,5 @@
 use anyhow::Error;
+use crabgrab::util::Size;
 
 use std::path::Path;
 use std::time::Instant;
@@ -192,22 +193,23 @@ impl Encoder for WmfEncoder {
 
         let media_sample = match frame.get_bitmap()? {
             FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
-                let buf = bgra_bytes.data.as_flattened();
-                let size = frame.size();
-
-                let row_stride = size.width as usize * 4;
+                // let buf = bgra_bytes.data.as_flattened();
+                let data = bgra_bytes.data;
+                let Size{width, height} = frame.size();
 
                 let flipped_buf = {
-                    let mut flipped = Vec::with_capacity(buf.len());
-                    for row in (0..size.height as usize).rev() {
-                        let start = row * row_stride;
-                        let end = start + row_stride;
-                        flipped.extend_from_slice(&buf[start..end]);
+                    let mut flipped = Vec::with_capacity(data.len());
+                    for row in (0..height as usize).rev() { 
+                        let start = row * width as usize;
+                        let end = start + width as usize;
+                        flipped.extend_from_slice(&data[start..end]);
                     }
                     flipped
                 };
 
-                let buffer = CryptographicBuffer::CreateFromByteArray(&flipped_buf)?;
+                let buf = flipped_buf.as_flattened();
+
+                let buffer = CryptographicBuffer::CreateFromByteArray(&buf)?;
                 MediaStreamSample::CreateFromBuffer(&buffer, timespan)?
             },
             _ => unimplemented!("windows encoder no support this px format"),
