@@ -193,7 +193,21 @@ impl Encoder for WmfEncoder {
         let media_sample = match frame.get_bitmap()? {
             FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
                 let buf = bgra_bytes.data.as_flattened();
-                let buffer = CryptographicBuffer::CreateFromByteArray(buf)?;
+                let size = frame.size();
+
+                let row_stride = size.width as usize * 4;
+
+                let flipped_buf = {
+                    let mut flipped = Vec::with_capacity(buf.len());
+                    for row in (0..size.height as usize).rev() {
+                        let start = row * row_stride;
+                        let end = start + row_stride;
+                        flipped.extend_from_slice(&buf[start..end]);
+                    }
+                    flipped
+                };
+
+                let buffer = CryptographicBuffer::CreateFromByteArray(&flipped_buf)?;
                 MediaStreamSample::CreateFromBuffer(&buffer, timespan)?
             },
             _ => unimplemented!("windows encoder no support this px format"),
