@@ -105,7 +105,7 @@ dependencies = [
 [[package]]
 name = "crabgrab"
 version = "0.4.3"
-source = "git+https://github.com/helmerapp/CrabGrab#daef7468a44f4bac8e2a0307cc5db6310d77f4eb"
+source = "git+https://github.com/helmerapp/CrabGrab?branch=feat-cm-sample-buffer#4110be7a6b4e4d2b0b32fce8263dfd0b721eb494"
 dependencies = [
  "block2",
  "bytemuck",

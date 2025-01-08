@@ -1,6 +1,6 @@
 use std::path::Path;
-use arc::Retained;
-use cidre::{objc::Obj, *};
+use cidre::arc::Retained;
+use cidre::{ns, av, cf, cm};
 use anyhow::Error;
 
 use super::Encoder;
