@@ -1,4 +1,8 @@
-pub mod acffmpeg;
+mod acffmpeg;
+mod cidre;
+
+pub use acffmpeg::*;
+pub use cidre::*;
 
 use anyhow::Error;
 use crabgrab::frame::VideoFrame;
