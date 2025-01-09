@@ -1,14 +1,9 @@
 use anyhow::Error;
-use crabgrab::util::Size;
 use windows::Security::Cryptography::CryptographicBuffer;
 
 use std::path::Path;
 use std::time::Instant;
 use std::thread::JoinHandle;
-
-use crate::encoder;
-
-// use crabgrab::frame::VideoFrame;
 
 use windows::core::HSTRING;
 use windows::Foundation::{EventRegistrationToken, TimeSpan, TypedEventHandler};
@@ -198,55 +193,6 @@ impl Encoder for WmfEncoder {
 
         self.sample_tx.send(Some(media_sample)).expect("couldn't send sample");
         println!("sample sent to encoder w ts: {}", ts_delta_nanos);
-
-        // Process timestamp
-        // let ts = frame.capture_time();
-        // if self.first_ts.is_none() {
-        //     self.first_ts = Some(ts)
-        // }
-
-        // // TOCHECK: this might be wrong, need to double check
-        // let ts_delta = ts.duration_since(self.first_ts.unwrap());
-        // let ts_delta_nanos = ts_delta.as_nanos() as i64;
-
-        // let timespan = TimeSpan { Duration: ts_delta_nanos / 100 };
-
-        // // Create a MediaStreamSample from D3DSurface
-        // // use crabgrab::feature::dx11::WindowsDx11VideoFrame;
-
-        // // let (dx11_surface, _) = frame.get_dx11_surface()?;
-        // // let media_sample = MediaStreamSample::CreateFromDirect3D11Surface(&dx11_surface, timespan)?;
-
-        // // Alt: create MediaStreamSample from Buffer
-        // use crabgrab::feature::bitmap::{VideoFrameBitmap, FrameBitmap};
-        // use windows::Security::Cryptography::CryptographicBuffer;
-
-        // let media_sample = match frame.get_bitmap()? {
-        //     FrameBitmap::BgraUnorm8x4(bgra_bytes) => {
-        //         // let buf = bgra_bytes.data.as_flattened();
-        //         let data = bgra_bytes.data;
-        //         let Size{width, height} = frame.size();
-
-        //         let flipped_buf = {
-        //             let mut flipped = Vec::with_capacity(data.len());
-        //             for row in (0..height as usize).rev() { 
-        //                 let start = row * width as usize;
-        //                 let end = start + width as usize;
-        //                 flipped.extend_from_slice(&data[start..end]);
-        //             }
-        //             flipped
-        //         };
-
-        //         let buf = flipped_buf.as_flattened();
-
-        //         let buffer = CryptographicBuffer::CreateFromByteArray(&buf)?;
-        //         MediaStreamSample::CreateFromBuffer(&buffer, timespan)?
-        //     },
-        //     _ => unimplemented!("windows encoder no support this px format"),
-        // };
-
-        // self.sample_tx.send(Some(media_sample)).expect("couldn't send sample");
-        // println!("sample sent to encoder w ts: {}", ts_delta_nanos);
 
         Ok(())
     }
