@@ -1,5 +1,5 @@
 use anyhow::Error;
-use crabgrab::frame::VideoFrame;
+// use crabgrab::frame::VideoFrame;
 
 // mod acffmpeg;
 // pub use acffmpeg::EncoderAcFfmpeg as VideoEncoder;
@@ -15,6 +15,8 @@ mod win;
 
 #[cfg(target_os = "windows")]
 pub use win::WmfEncoder as VideoEncoder;
+
+use crate::VideoFrame;
 
 pub trait Encoder {
     fn append_frame(&mut self, video_frame: VideoFrame) -> Result<(), Error>;

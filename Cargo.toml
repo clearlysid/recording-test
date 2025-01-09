@@ -9,6 +9,7 @@ crabgrab = { git = "https://github.com/helmerapp/CrabGrab", branch = "feat-cm-sa
 crossbeam-channel = "0.5.13"
 pollster = "0.3.0"
 anyhow = "1.0.86"
+bytes = "1.9.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.52.0", features = [
@@ -35,6 +36,10 @@ windows = { version = "0.52.0", features = [
     "Win32_System_WinRT_Graphics_Capture",
     "Win32_UI_WindowsAndMessaging",
     "Win32_Media_MediaFoundation",
+] }
+nokhwa = { git = "https://github.com/CapSoftware/nokhwa", rev = "0d3d1f30a78b", features = [
+	"input-native",
+	"output-threaded",
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
