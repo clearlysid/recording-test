@@ -1,77 +1,67 @@
 mod encoder;
 
+use std::{path::Path, sync::mpsc, time::Duration};
+
 use anyhow::Error;
-use std::sync::mpsc;
-use std::path::Path;
+use bytes::Bytes;
+use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, StreamInstant};
 use encoder::{Encoder, VideoEncoder};
-use pollster::FutureExt;
 
-use crabgrab::capturable_content::{CapturableContent, CapturableContentFilter};
-use crabgrab::capture_stream::{CaptureConfig, CaptureStream, StreamEvent, CapturePixelFormat};
+const OUTPUT_FILE: &str = "./audio.mp3";
 
-// Variables to configure the stream
-// Encoder configs are in the ./encoder folder
-const STREAM_PX_FMT: CapturePixelFormat = CapturePixelFormat::Bgra8888;
-const SCALE_FACTOR: f64 = 1.0; // NOTE: on macbooks this can be 2.0
-const OUTPUT_FILE: &str = "./video.mp4";
+fn main() -> Result<(), anyhow::Error> {
+    let device = cpal::default_host().default_input_device().ok_or(Error::msg("Invalid device"))?;
 
-fn main() -> Result<(), Error> {
+    let config = device.default_input_config()?;
+    let foramt = config.sample_format();
 
-    // MARK: Configure Stream
-    let content = CapturableContent::new(CapturableContentFilter::DISPLAYS).block_on()?;
-    let display = content.displays().next().ok_or(Error::msg("No displays found"))?;
+    println!("Config: {:?}", config);
 
-    let size = display.rect().scaled(SCALE_FACTOR).size; // Hardcoded to 2 (as scale factor)
-    let height = size.height;
-    let width = size.width;
-
-    let stream_cfg = CaptureConfig::with_display(display, STREAM_PX_FMT, None)
-        .with_color_space_name("kCGColorSpaceSRGB".to_string())
-        .with_output_size(size);
-
-    let stream_token =
-    CaptureStream::test_access(false).ok_or(Error::msg("Failed to get access token"))?;
-
-    // MARK: Configure Encoder
     let output = Path::new(OUTPUT_FILE);
-    let mut encoder = VideoEncoder::init(height, width, output)?;
+    let mut encoder = VideoEncoder::init(output)?;
 
     let (tx, rx) = mpsc::channel();
 
     let handle = std::thread::spawn(move || {
-        while let Ok(Some(frame)) = rx.recv() {
-            encoder.append_frame(frame).expect("couldn't encode frame");
+        while let Ok(Some(audio_sample)) = rx.recv() {
+            encoder.append_audio(audio_sample).expect("couldn't encode frame");
+        }    
+            encoder.finish().expect("couldn't finish encoding");
+            });
+
+    let mut t: Option<StreamInstant> = None;
+
+    let tx_clone = tx.clone();
+
+    let stream = device.build_input_stream_raw(
+        &config.config(),
+        foramt,
+        move |raw_data, info | {
+            let pts = {
+                let capture = info.timestamp().capture;
+                capture.duration_since(&t.get_or_insert(capture)).unwrap()
+            };
+            let data = Bytes::copy_from_slice(raw_data.bytes());
+            tx_clone.send(Some(AudioSample { data, pts })).expect("couldn't send frame");
         }
+        , |e| println!("Error: {:?}", e),
+        None
+    ).expect("Failed to build input stream");
 
-        encoder.finish().expect("couldn't finish encoding");
-    });
+    stream.play().expect("Failed to play stream");
 
-    // MARK: Start stream
-    let mut stream = CaptureStream::new(stream_token, stream_cfg, move |result| match result {
-        Ok(event) => match event {
-            StreamEvent::Video(frame) => {
-                println!("got new frame");
-                tx.send(Some(frame)).expect("couldn't send frame");
-            },
-            StreamEvent::End => match tx.send(None) {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!("Error sending end-of-stream signal: {}", e);
-                }
-            },
-            _ => {}
-        },
-        Err(e) => eprintln!("Error: {}", e),
-    })?;
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
+    stream.pause().expect("Failed to pause stream");
 
-    // MARK: Record for 3 seconds, then stop
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    stream.stop()?;
+    tx.send(None).expect("couldn't send no-op");
 
     handle.join().expect("couldn't complete encoding thread");
 
-    println!("finished!");
-
     Ok(())
+}
+
+pub struct AudioSample {
+    data: Bytes,
+    pts: Duration,
 }
