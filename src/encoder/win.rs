@@ -197,9 +197,9 @@ impl Encoder for WmfEncoder {
 
                 let flipped_buf = {
                     let mut flipped = Vec::with_capacity(data.len());
-                    for row in (0..height as usize).rev() { 
-                        let start = row * width as usize;
-                        let end = start + width as usize;
+                    for row in (0..height).rev() { 
+                        let start = row * width;
+                        let end = start + width;
                         flipped.extend_from_slice(&data[start..end]);
                     }
                     flipped
