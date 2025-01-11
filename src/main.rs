@@ -2,10 +2,16 @@ mod encoder;
 
 use std::{path::Path, sync::mpsc, time::Instant};
 
+use anyhow::Error;
 use bytes::Bytes;
 use encoder::{Encoder, VideoEncoder};
-use nokhwa::{native_api_backend, pixel_format::RgbAFormat, query, utils::{CameraFormat, FrameFormat, RequestedFormat, RequestedFormatType}, CallbackCamera};
-use anyhow::Error;
+use nokhwa::{
+    native_api_backend,
+    pixel_format::RgbAFormat,
+    query,
+    utils::{CameraFormat, FrameFormat, RequestedFormat, RequestedFormatType},
+    CallbackCamera,
+};
 
 const OUTPUT_FILE: &str = "./video.mp4";
 
@@ -15,20 +21,22 @@ fn main() -> Result<(), Error> {
 
     let cam_info = camera_list.first().unwrap();
 
-    
     let cam_index = cam_info.index().to_owned();
 
-    let format =  RequestedFormat::new::<RgbAFormat>(RequestedFormatType::AbsoluteHighestResolution);
+    let format = RequestedFormat::new::<RgbAFormat>(RequestedFormatType::AbsoluteHighestResolution);
 
     let mut camera = CallbackCamera::new(cam_index, format, |_| {})?;
 
-    println!("{}", camera.resolution().unwrap());
+    println!("camera rez: {}", camera.resolution().unwrap());
 
     let width = camera.resolution().unwrap().width();
     let height = camera.resolution().unwrap().height();
 
     let output = Path::new(OUTPUT_FILE);
     let mut encoder = VideoEncoder::init(height, width, output)?;
+
+    // TOFIX: my code doesn't run past this point and this log never gets printed.
+    println!("encoder created");
 
     let (tx, rx) = mpsc::channel();
 
@@ -42,22 +50,22 @@ fn main() -> Result<(), Error> {
 
     let tx_clone = tx.clone();
     camera.set_callback(move |buffer| {
-            let ts = std::time::Instant::now();
+        let ts = std::time::Instant::now();
 
-            let width = buffer.resolution().width();
-            let height = buffer.resolution().height();
-            println!("{}", buffer.source_frame_format());
+        let width = buffer.resolution().width();
+        let height = buffer.resolution().height();
+        println!("{}", buffer.source_frame_format());
 
-            let data = buffer.buffer_bytes();
+        let data = buffer.buffer_bytes();
 
-            let frame = VideoFrame {
-                width,
-                height,
-                data,
-                ts,
-            };
-        
-            tx_clone.send(Some(frame)).expect("couldn't send frame");
+        let frame = VideoFrame {
+            width,
+            height,
+            data,
+            ts,
+        };
+
+        tx_clone.send(Some(frame)).expect("couldn't send frame");
     })?;
     camera.open_stream()?;
 
@@ -65,8 +73,8 @@ fn main() -> Result<(), Error> {
 
     camera.set_callback(move |_| {
         tx.send(None).expect("couldn't send end-of-stream signal");
-})?;
-        
+    })?;
+
     handle.join().expect("couldn't join handle");
     Ok(())
 }
