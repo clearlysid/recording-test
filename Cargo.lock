@@ -105,7 +105,7 @@ dependencies = [
 [[package]]
 name = "crabgrab"
 version = "0.4.3"
-source = "git+https://github.com/helmerapp/CrabGrab?branch=feat-cm-sample-buffer#4110be7a6b4e4d2b0b32fce8263dfd0b721eb494"
+source = "git+https://github.com/helmerapp/CrabGrab?branch=feat%2Fsupport_cropping#475680ea5021a1efb9f3c879c03cf018575260ba"
 dependencies = [
  "block2",
  "bytemuck",
